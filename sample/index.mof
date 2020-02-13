@@ -1,0 +1,12 @@
+<require>
+    <tag load="mofron-comp-fileselector">FileSel</tag>
+</require>
+
+<script run=init>
+let chg_evt = (p1,p2,p3) => { console.log(p1.value()); }
+</script>
+
+<FileSel change-event=@chg_evt size=(2rem,0.3rem)>
+    <multiple>true</multiple>
+    <text>file select</text>
+</FileSel>
