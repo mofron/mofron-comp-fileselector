@@ -4,13 +4,14 @@
  * @license MIT
  */
 const FormItem = require("mofron-comp-formitem");
-const Text = require("mofron-comp-text");
-const Button = require("mofron-comp-button");
-const Focus = require("mofron-event-focus");
+const Input    = require("mofron-comp-input");
+const Text     = require("mofron-comp-text");
+const Button   = require("mofron-comp-button");
+const Focus    = require("mofron-event-focus");
 const onCommon = require("mofron-event-oncommon");
-const SyncHei = require("mofron-effect-synchei");
-const comutl = mofron.util.common;
-const ConfArg = mofron.class.ConfArg;
+const SyncHei  = require("mofron-effect-synchei");
+const comutl   = mofron.util.common;
+const ConfArg  = mofron.class.ConfArg;
 
 
 let read_files = null;
@@ -27,10 +28,10 @@ module.exports = class extends FormItem {
     constructor (prm) {
         try {
             super();
-            this.name("FileSelector");
+            this.modname("FileSelector");
 	    this.shortForm("text");
 	    /* init config */
-	    this.confmng().add("input", { type: "Dom" });
+//	    this.confmng().add("input", { type: "Dom" });
 	    this.confmng().add("value", { type: "string", list: true });
 	    this.confmng().add("base64Value", { type: "string", list: true });
             /* set config */
@@ -51,68 +52,61 @@ module.exports = class extends FormItem {
     initDomConts () {
         try {
             super.initDomConts();
-            this.style({ display: "flex" });
-            
-	    let inp = new mofron.class.Dom({
-                          tag: "input", component: this,
-                          attrs: { type : "file" }, style: { display: "none" }
-                      });
-            this.childDom().child(inp);
-	    this.input(inp);
-            
-	    this.child([this.button(), this.filetxt()]);
-	    this.text("File");
-	    this.filetxt().effect(new SyncHei(this.button()));
-
-	    /* set child dom */
-            this.childDom(inp);
-
-	    let chg = (c1,c2) => {
-                try {
-		    c1.confmng().delete("value");
-		    c1.confmng().delete("base64Value");
-		    c1.filetxt("");
-		    let flist = "";
-		    let files = c1.input().getRawDom().files;
-		    let reader = [];
-                    for (let fidx in files) {
-		        if (true === Number.isNaN(parseInt(fidx,10))) {
-                            continue;
-			}
-			flist += files[fidx].name + ",";
-                        reader.push(new FileReader());
-			reader[fidx].readAsDataURL(files[fidx]);
-			reader[fidx].onload = () => {
-                            try {
-			        if (0 === reader[fidx].result.length) {
-                                    return;
-				}
-				c1.base64Value(reader[fidx].result.split(',')[1]);
-			        c1.value(atob(reader[fidx].result.split(',')[1]));
-				/* change event */
-				let cevt = c1.changeEvent();
-				for (let cidx in cevt) {
-                                    cevt[cidx].exec(c1,reader.result);
-				}
-			    } catch (e) {
-                                console.error(e.stack);
-                                throw e;
-			    }
-			}
-		    }
-		    c1.filetxt(flist.substring(0,flist.length-1));
-		} catch (e) {
-                    console.error(e.stack);
-                    throw e;
-		}
-	    }
-            this.event(new onCommon(new ConfArg(chg,"onchange")));
+	    let wrap = new mofron.class.Component({
+	        style: { "display": "flex" },
+                child: [this.button(), this.filetxt()]
+	    })
+            this.child([this.input(), wrap]);
         } catch (e) {
             console.error(e.stack);
             throw e;
         }
     }
     
+    fileEvent (p1,p2,p3) {
+        try {
+	    p2.preventDefault();
+
+	    /* init file value */
+	    p3.confmng().delete("value");
+            p3.confmng().delete("base64Value");
+            p3.filetxt("");
+            
+            let flist = "";
+            let files = p1.childDom().getRawDom().files;
+            let reader = [];
+            for (let fidx in files) {
+                if (true === Number.isNaN(parseInt(fidx,10))) {
+                    continue;
+                }
+                flist += files[fidx].name + ",";
+                reader.push(new FileReader());
+                reader[fidx].readAsDataURL(files[fidx]);
+                reader[fidx].onload = () => {
+                    try {
+                        if (0 === reader[fidx].result.length) {
+                            return;
+                        }
+                        p3.base64Value(reader[fidx].result.split(',')[1]);
+                        p3.value(atob(reader[fidx].result.split(',')[1]));
+                        /* change event */
+                        let cevt = p3.changeEvent();
+                        for (let cidx in cevt) {
+                            cevt[cidx][0](p3, reader.result, cevt[cidx][1]);
+                        }
+                    } catch (e) {
+                        console.error(e.stack);
+                        throw e;
+                    }
+                }
+            }
+            p3.filetxt(flist.substring(0,flist.length-1));
+	} catch (e) {
+            console.error(e.stack);
+            throw e;
+	}
+    }
+
     /**
      * input tag setter/getter
      * 
@@ -123,7 +117,14 @@ module.exports = class extends FormItem {
      */
     input (prm) {
         try {
-            return this.confmng("input", prm);
+	    if (true === comutl.isinc(prm, "Input")) {
+	        prm.type("file");
+                prm.visible(false);
+		prm.event(
+		    new onCommon(new ConfArg(this.fileEvent, this), "onchange")
+		);
+	    }
+            return this.innerComp("input", prm, Input);
 	} catch (e) {
             console.error(e.stack);
             throw e;
@@ -141,29 +142,22 @@ module.exports = class extends FormItem {
     button (prm) {
         try {
 	    if (true === comutl.isinc(prm, "Button")) {
-	        let clk = (p1,p2,p3) => {
-                    try {
-                        p3.input().getRawDom().click();
-		    } catch (e) {
-                        console.error(e.stack);
-			throw e;
-		    }
-		};
-		let fcs = (f1,f2,f3) => {
-                    try {
-                        let fevt = f3.focusEvent();
-                        for (let fidx in fevt) {
-                            fevt[fidx].exec(f3,f2);
-			}
-		    } catch (e) {
-                        console.error(e.stack);
-                        throw e;
-		    }
-		};
-		prm.config({
-                    clickEvent: new ConfArg(clk,this),
-		    event: new Focus(new ConfArg(fcs,this))
-		});
+	        prm.clickEvent(
+		    (c1,c2,c3) => {
+                        c3.input().childDom().getRawDom().click();
+                    },
+		    this
+		);
+		let fcs_evt = (f1,f2,f3) => {
+                    let fevt = f3.focusEvent();
+                    for (let fidx in fevt) {
+                        fevt[fidx][0].exec(f3,f2, fevt[fidx][1]);
+                    }
+		}
+                let focus = new Focus(new ConfArg(fcs_evt, this));
+                prm.event(
+                    new Focus(new ConfArg(fcs_evt, this))
+                );
 	    }
             return this.innerComp("button", prm, Button);
 	} catch (e) {
@@ -181,13 +175,15 @@ module.exports = class extends FormItem {
      * @return (mofron-comp-text) file name text component
      * @type parameter
      */
-    filetxt (prm) {
+    filetxt (prm, cnf) {
         try {
 	    if ("string" === typeof prm) {
 	        this.filetxt().text(prm);
+		this.filetxt().config(cnf);
                 return;
 	    } else if (true === comutl.isinc(prm, "Text")) {
                 prm.style({ "margin-left" : "0.2rem" });
+		prm.config(cnf);
 	    }
             return this.innerComp("filetxt", prm, Text);
 	} catch (e) {
