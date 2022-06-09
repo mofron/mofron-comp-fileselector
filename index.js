@@ -31,7 +31,10 @@ module.exports = class extends FormItem {
             this.modname("FileSelector");
 	    this.shortForm("text");
 	    /* init config */
-//	    this.confmng().add("input", { type: "Dom" });
+	    this.confmng().add("typeFilter", { type: "string", list: true, init:[] });
+	    this.confmng().add("typeFilter_comp", { type: "Component" });
+	    this.confmng().add("sizeFilter", { type: "number" });
+            this.confmng().add("sizeFilter_comp", { type: "Component" });
 	    this.confmng().add("value", { type: "string", list: true });
 	    this.confmng().add("base64Value", { type: "string", list: true });
             /* set config */
@@ -80,6 +83,16 @@ module.exports = class extends FormItem {
                     continue;
                 }
                 flist += files[fidx].name + ",";
+                
+		/* check type filter */
+		let typ_fil = p3.typeFilter();
+		let ftype   = files[fidx].name.split('.')[1];
+		for (let fidx in typ_fil.type) {
+                    if (ftype !== typ_fil.type[fidx]) {
+		        typ_fil.comp.visible(true);
+		        return;
+                    }
+		}
                 reader.push(new FileReader());
                 reader[fidx].readAsDataURL(files[fidx]);
                 reader[fidx].onload = () => {
@@ -87,6 +100,8 @@ module.exports = class extends FormItem {
                         if (0 === reader[fidx].result.length) {
                             return;
                         }
+                        
+                        let siz_fil = p3.sizeFilter();
                         p3.base64Value(reader[fidx].result.split(',')[1]);
                         p3.value(atob(reader[fidx].result.split(',')[1]));
                         /* change event */
@@ -101,6 +116,38 @@ module.exports = class extends FormItem {
                 }
             }
             p3.filetxt(flist.substring(0,flist.length-1));
+        } catch (e) {
+            console.error(e.stack);
+            throw e;
+        }
+    }
+    
+    typeFilter (tp, cmp) {
+        try {
+            if (undefined === tp) {
+                return {
+                    type: this.confmng("typeFilter"),
+		    comp: this.confmng("typeFilter_comp")
+		};
+	    }
+	    this.confmng("typeFilter", tp);
+            this.confmng("typeFilter_comp", cmp);
+	} catch (e) {
+            console.error(e.stack);
+            throw e;
+	}
+    }
+    
+    sizeFilter (siz, cmp) {
+        try {
+            if (undefined === siz) {
+                return {
+                    size: this.confmng("sizeFilter"),
+                    comp: this.confmng("sizeFilter_comp")
+		};
+	    }
+	    this.confmng("sizeFilter", siz);
+            this.confmng("sizeFilter_comp", cmp);
 	} catch (e) {
             console.error(e.stack);
             throw e;
@@ -129,6 +176,21 @@ module.exports = class extends FormItem {
             console.error(e.stack);
             throw e;
 	}
+    }
+
+    contents (fnc) {
+        
+        if (0 === this.input().childDom().getRawDom().length) {
+            return;
+        }
+        let file = this.input().childDom().getRawDom().files[0];
+        const reader = new FileReader();
+        reader.onload = () => {
+            fnc(reader.result);
+        };
+        
+        reader.readAsText(file);
+
     }
     
     /**
